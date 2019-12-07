@@ -74,7 +74,7 @@ void setup()
 {
     Serial.begin(9600);
     pinMode(IDS1820_PIN, OUTPUT);
-    FastLED.addLeds<WS2811, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
+    FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
     if (CURRENT_LIMIT > 0)
     {
         FastLED.setMaxPowerInVoltsAndMilliamps(5, CURRENT_LIMIT / NUM_STRIPS);
