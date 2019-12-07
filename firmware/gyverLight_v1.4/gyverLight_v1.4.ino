@@ -1,5 +1,5 @@
 /*
-  Скетч к проекту "Эффектный светильник"
+  Скетч к проекту "Эффектный светильник" переработанный согласно пожеланиям Вадима
 */
 
 /*
@@ -7,32 +7,29 @@
   - 1х тап - вкл. воспроизведения голосового сообщения. Смена режима работы световых индикаторов 
 */
 
+#include "GyverButton.h"
+#include <FastLED.h>
+#include "GyverTimer.h"
+
 // ************************** НАСТРОЙКИ ***********************
 #define CURRENT_LIMIT 2000 // лимит по току в миллиамперах, автоматически управляет яркостью (пожалей свой блок питания!) 0 - выключить лимит
-#define AUTOPLAY_TIME 10   // время проигрывания голосового сообщения
-#define SPEED_EFFECT 10    // Время отображения секущего эффекта
+#define PLAY_TIME 10       // время проигрывания голосового сообщения (в сек.)
+#define EFFECT_1_SPEED 20  // Скорость отображения эффекта  1 (20 ед. примерно соотвествует времени в 5 сек.)
+#define EFFECT_2_SPEED 40  // Скорость отображения эффекта  2 (40 ед. примерно соотвествует времени в 10 сек.)
 
 #define NUM_LEDS 9   // количество светодиодов в одном отрезке ленты
 #define NUM_STRIPS 3 // количество отрезков ленты (в параллели)
-#define LED_PIN 6    // пин ленты
-#define BTN_PIN 2    // пин кнопки/сенсора
 
+#define LED_PIN 6     // пин ленты
+#define BTN_PIN 2     // пин кнопки/сенсора
 #define IDS1820_PIN 5 // пин isd1820
 
-#define BRIGHTNESS 255 // яркость
+static GButton touch(BTN_PIN, LOW_PULL, NORM_OPEN);
+static CRGB leds[NUM_LEDS];
+static CRGBPalette16 gPal;
 
-#include "GyverButton.h"
-GButton touch(BTN_PIN, LOW_PULL, NORM_OPEN);
-
-#include <FastLED.h>
-CRGB leds[NUM_LEDS];
-CRGBPalette16 gPal;
-
-#include "GyverTimer.h"
-GTimer_ms autoplayTimer((long)AUTOPLAY_TIME * 1000);
-
-static int brightness = BRIGHTNESS;
-static boolean autoplay = true;
+static GTimer_ms playTimer((uint32_t)PLAY_TIME * 1000);
+static GTimer_ms effectTimer((uint32_t)EFFECT_1_SPEED);
 
 enum ModeWork
 {
@@ -40,6 +37,8 @@ enum ModeWork
     Dynamic
 };
 
+static int brightness = 255; // яркость свечения светодиодов
+static bool play = false;
 static ModeWork modeWork = Static;
 
 // Задать всем светодиодам один цвет
@@ -55,16 +54,16 @@ void fillAll(CRGB newcolor)
 void effectColors()
 {
     static byte hue = 0;
-    hue += 2;
+    hue += 1;
     CRGB thisColor = CHSV(hue, 255, 255);
-    fillAll(CHSV(hue, 255, 255));
+    fillAll(thisColor);
 }
 
 // ****************************** РАДУГА ******************************
 void effectRainbow()
 {
     static byte hue = 0;
-    hue += 2;
+    hue += 1;
     for (int i = 0; i < NUM_LEDS; i++)
     {
         leds[i] = CHSV((byte)(hue + i * float(255 / NUM_LEDS)), 255, 255);
@@ -85,6 +84,9 @@ void setup()
 
     touch.setTimeout(300);
     touch.setStepTimeout(50);
+
+    effectTimer.setInterval(EFFECT_1_SPEED);
+    effectTimer.start();
 }
 
 void loop()
@@ -92,32 +94,41 @@ void loop()
     touch.tick();
 
     // Управление режимами
-    if (touch.hasClicks())
+    if ((touch.hasClicks()) && (!play))
     {
         // Включаем воспроизведение голосовой записи
         digitalWrite(IDS1820_PIN, HIGH);
         // Переходим в измененный режим работы светодиодов
         modeWork = Dynamic;
-        FastLED.show();
+        effectTimer.setInterval(EFFECT_2_SPEED);
+        playTimer.start();
+        play = true;
     }
 
-    switch (modeWork)
+    if (effectTimer.isReady())
     {
-    case Static:
-        effectColors();
-        break;
+        switch (modeWork)
+        {
+        case Static:
+            effectColors();
+            break;
 
-    case Dynamic:
-        effectRainbow();
-        break;
+        case Dynamic:
+            effectRainbow();
+            break;
 
-    default:
-        break;
+        default:
+            break;
+        }
     }
 
-    if (autoplayTimer.isReady() && autoplay)
+    if (playTimer.isReady())
     {
+        playTimer.stop();
+        effectTimer.setInterval(EFFECT_1_SPEED);
         modeWork = Static;
         digitalWrite(IDS1820_PIN, LOW);
+        play = false;
     }
+    FastLED.show();
 }
