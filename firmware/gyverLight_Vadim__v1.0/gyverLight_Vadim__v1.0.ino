@@ -83,10 +83,12 @@ void setup()
     FastLED.show();
 
     touch.setTimeout(300);
-    touch.setStepTimeout(50);
 
     effectTimer.setInterval(EFFECT_1_SPEED);
     effectTimer.start();
+
+    playTimer.reset();
+    playTimer.stop();
 }
 
 void loop()
@@ -94,13 +96,14 @@ void loop()
     touch.tick();
 
     // Управление режимами
-    if ((touch.hasClicks()) && (!play))
+    if ((touch.isPress()) && (!play))
     {
         // Включаем воспроизведение голосовой записи
         digitalWrite(IDS1820_PIN, HIGH);
         // Переходим в измененный режим работы светодиодов
         modeWork = Dynamic;
         effectTimer.setInterval(EFFECT_2_SPEED);
+        playTimer.reset();
         playTimer.start();
         play = true;
     }
