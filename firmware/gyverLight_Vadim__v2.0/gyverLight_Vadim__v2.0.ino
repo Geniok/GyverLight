@@ -15,17 +15,16 @@
 // ************************** НАСТРОЙКИ ***********************
 #define CURRENT_LIMIT 2000 // лимит по току в миллиамперах, автоматически управляет яркостью (пожалей свой блок питания!) 0 - выключить лимит
 #define LIGHT_TIME 60      // время до выключения, если не было касания (60 ед. примерно соотвествует времени в 60 сек.)
-#define EFFECT_1_SPEED 240 // Скорость отображения эффекта  1 (240 ед. примерно соотвествует времени в 60 сек.)
-#define EFFECT_2_SPEED 240 // Скорость отображения эффекта  2 (240 ед. примерно соотвествует времени в 60 сек.)
-#define EFFECT_3_SPEED 240 // Скорость отображения эффекта  3 (240 ед. примерно соотвествует времени в 60 сек.)
-#define EFFECT_4_SPEED 240 // Скорость отображения эффекта  4 (240 ед. примерно соотвествует времени в 60 сек.)
-#define EFFECT_5_SPEED 240 // Скорость отображения эффекта  5 (240 ед. примерно соотвествует времени в 60 сек.)
-#define EFFECT_6_SPEED 240 // Скорость отображения эффекта  6 (240 ед. примерно соотвествует времени в 60 сек.)
+#define EFFECT_1_SPEED 120 // Скорость отображения эффекта  1 (240 ед. примерно соотвествует времени в 60 сек.)
+#define EFFECT_2_SPEED 120 // Скорость отображения эффекта  2 (240 ед. примерно соотвествует времени в 60 сек.)
+#define EFFECT_3_SPEED 120 // Скорость отображения эффекта  3 (240 ед. примерно соотвествует времени в 60 сек.)
+#define EFFECT_4_SPEED 120 // Скорость отображения эффекта  4 (240 ед. примерно соотвествует времени в 60 сек.)
+#define EFFECT_5_SPEED 120 // Скорость отображения эффекта  5 (240 ед. примерно соотвествует времени в 60 сек.)
 
 #define TRACK_STEP 50
 
 #define NUM_LEDS 9   // количество светодиодов в одном отрезке ленты
-#define NUM_STRIPS 3 // количество отрезков ленты (в параллели)
+#define NUM_STRIPS 6 // количество отрезков ленты (в параллели)
 
 #define LED_PIN 6 // пин ленты
 #define BTN_PIN 2 // пин кнопки/сенсора
@@ -39,7 +38,7 @@ static GTimer_ms effectTimer((uint32_t)EFFECT_1_SPEED);
 
 static uint8_t brightness = 255; // яркость свечения светодиодов
 static uint8_t numberEffects = 0;
-static const uint8_t countEffects = 6;
+static const uint8_t countEffects = 5;
 static boolean powerActive = false;
 
 // Задать всем светодиодам один цвет
@@ -176,60 +175,6 @@ void effectSparkles()
     fade();
 }
 
-// ****************************** ОГОНЬ ******************************
-void effectFire()
-{
-    random16_add_entropy(random());
-    Fire2012WithPalette();
-}
-
-void Fire2012WithPalette()
-{
-    static uint8_t COOLING = 55;
-    static uint8_t SPARKING = 120;
-    // Array of temperature readings at each simulation cell
-    static byte heat[NUM_LEDS];
-    static bool gReverseDirection = false;
-
-    // Step 1.  Cool down every cell a little
-    for (int i = 0; i < NUM_LEDS; i++)
-    {
-        heat[i] = qsub8(heat[i], random8(0, ((COOLING * 10) / NUM_LEDS) + 2));
-    }
-
-    // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-    for (int k = NUM_LEDS - 1; k >= 2; k--)
-    {
-        heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2]) / 3;
-    }
-
-    // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
-    if (random8() < SPARKING)
-    {
-        int y = random8(7);
-        heat[y] = qadd8(heat[y], random8(160, 255));
-    }
-
-    // Step 4.  Map from heat cells to LED colors
-    for (int j = 0; j < NUM_LEDS; j++)
-    {
-        // Scale the heat value from 0-255 down to 0-240
-        // for best results with color palettes.
-        byte colorindex = scale8(heat[j], 240);
-        CRGB color = ColorFromPalette(gPal, colorindex);
-        int pixelnumber;
-        if (gReverseDirection)
-        {
-            pixelnumber = (NUM_LEDS - 1) - j;
-        }
-        else
-        {
-            pixelnumber = j;
-        }
-        leds[pixelnumber] = color;
-    }
-}
-
 void setup()
 {
     Serial.begin(9600);
@@ -252,12 +197,12 @@ void loop()
     touch.tick();
 
     // Управление режимами
-    if (touch.isPress() && !powerActive)
+    if (!powerActive && touch.isPress())
     {
         powerActive = true;
         nextEffect();
     }
-    else if (touch.isPress() && powerActive)
+    else if (powerActive && touch.isPress())
     {
         nextEffect();
     }
@@ -283,9 +228,6 @@ void loop()
             case 5:
                 effectSparkles();
                 break;
-            case 6:
-                effectFire();
-                break;
             }
         }
 
@@ -293,8 +235,9 @@ void loop()
     }
     else
     {
-        // FastLED.clear(true);
+        FastLED.clear(true);
         fillAll(CRGB::Black);
+        FastLED.show();
     }
 
     if (lightTimer.isReady())
@@ -330,9 +273,6 @@ void nextEffect()
         break;
     case 5:
         effectTimer.setInterval(EFFECT_5_SPEED);
-        break;
-    case 6:
-        effectTimer.setInterval(EFFECT_6_SPEED);
         break;
     }
 
